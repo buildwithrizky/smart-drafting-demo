@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' file: data:;">
+  <title>Smart Drafting Engine</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #f8f9fc;
+      --surface: #ffffff;
+      --surface-2: #f1f3f8;
+      --surface-3: #e8ecf4;
+      --border: #e2e6ef;
+      --border-light: #d0d5e0;
+      --text: #1a1d2e;
+      --text-secondary: #5c6478;
+      --text-muted: #8b92a8;
+      --accent: #4f46e5;
+      --accent-light: #6366f1;
+      --accent-glow: rgba(79, 70, 229, 0.06);
+      --success: #059669;
+      --success-bg: rgba(5, 150, 105, 0.08);
+      --success-border: rgba(5, 150, 105, 0.25);
+      --warning: #d97706;
+      --warning-bg: rgba(217, 119, 6, 0.08);
+      --warning-border: rgba(217, 119, 6, 0.25);
+      --danger: #dc2626;
+      --danger-bg: rgba(220, 38, 38, 0.06);
+      --danger-border: rgba(220, 38, 38, 0.2);
+      --blue: #2563eb;
+      --blue-bg: rgba(37, 99, 235, 0.06);
+      --radius: 12px;
+      --radius-sm: 8px;
+      --shadow: 0 4px 24px rgba(0,0,0,0.06);
+      --font: 'DM Sans', -apple-system, sans-serif;
+      --mono: 'JetBrains Mono', monospace;
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      overflow: hidden;
+      height: 100vh;
+    }
+
+    /* Header */
+    .header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      backdrop-filter: blur(10px);
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .header-logo {
+      width: 38px;
+      height: 38px;
+      background: linear-gradient(135deg, #4f46e5, #6366f1);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: white;
+      font-size: 10px;
+      letter-spacing: 0.5px;
+      box-shadow: 0 2px 12px rgba(79, 70, 229, 0.25);
+    }
+
+    .header-title h1 {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: -0.3px;
+    }
+
+    .header-title p {
+      font-size: 11px;
+      color: var(--text-secondary);
+      font-weight: 400;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .header-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      padding: 6px 14px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      color: var(--text-secondary);
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 8px var(--success);
+      animation: glow 2s infinite;
+    }
+
+    .status-dot.offline {
+      background: var(--danger);
+      box-shadow: 0 0 8px var(--danger);
+      animation: none;
+    }
+
+    @keyframes glow {
+      0%, 100% { opacity: 1; box-shadow: 0 0 8px var(--success); }
+      50% { opacity: 0.6; box-shadow: 0 0 4px var(--success); }
+    }
+
+    .ai-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10px;
+      padding: 5px 10px;
+      background: var(--accent-glow);
+      border: 1px solid rgba(79, 70, 229, 0.2);
+      border-radius: 20px;
+      color: var(--accent-light);
+      font-weight: 500;
+      letter-spacing: 0.3px;
+    }
+
+    /* Main Layout */
+    .main {
+      display: grid;
+      grid-template-columns: 2fr 3fr;
+      gap: 16px;
+      padding: 16px;
+      height: calc(100vh - 63px);
+      overflow: hidden;
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--surface-2);
+    }
+
+    .panel-header h2 {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: -0.2px;
+    }
+
+    .panel-badge {
+      font-size: 10px;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-weight: 500;
+      background: var(--accent-glow);
+      color: var(--accent-light);
+      border: 1px solid rgba(108, 92, 231, 0.2);
+    }
+
+    .panel-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+    }
+
+    /* Upload Area */
+    .upload-area {
+      border: 1.5px dashed var(--border-light);
+      border-radius: var(--radius);
+      padding: 32px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      background: var(--surface-2);
+    }
+
+    .upload-area:hover {
+      border-color: var(--accent);
+      background: var(--accent-glow);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px rgba(79, 70, 229, 0.06);
+    }
+
+    .upload-icon {
+      font-size: 40px;
+      margin-bottom: 10px;
+      filter: grayscale(0.3);
+    }
+
+    .upload-area h3 {
+      font-size: 14px;
+      margin-bottom: 4px;
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    .upload-area p {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .upload-area .upload-cta {
+      margin-top: 10px;
+      color: var(--accent-light);
+      font-weight: 500;
+      font-size: 12px;
+    }
+
+    /* File Info */
+    .file-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      margin-top: 14px;
+    }
+
+    .file-icon { font-size: 24px; }
+
+    .file-details h4 {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .file-details p {
+      font-size: 10px;
+      color: var(--text-muted);
+      font-family: var(--mono);
+    }
+
+    /* Buttons */
+    .btn {
+      padding: 9px 18px;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #4f46e5, #6366f1);
+      color: white;
+      box-shadow: 0 2px 12px rgba(79, 70, 229, 0.2);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 20px rgba(79, 70, 229, 0.3);
+    }
+
+    .btn-primary:disabled {
+      background: var(--surface-3);
+      color: var(--text-muted);
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+    }
+
+    .btn-outline:hover {
+      background: var(--surface-2);
+      border-color: var(--accent);
+      color: var(--accent-light);
+    }
+
+    .btn-success {
+      background: linear-gradient(135deg, #059669, #10b981);
+      color: white;
+      box-shadow: 0 2px 12px rgba(5, 150, 105, 0.2);
+    }
+
+    .actions { margin-top: 14px; display: flex; gap: 8px; }
+
+    /* Progress */
+    .progress-container { margin-top: 18px; display: none; }
+    .progress-container.active { display: block; }
+
+    .progress-bar-wrapper {
+      height: 4px;
+      background: var(--surface-3);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent-light), var(--accent));
+      background-size: 200% 100%;
+      border-radius: 2px;
+      transition: width 0.4s;
+      animation: shimmer 2s infinite linear;
+    }
+
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+
+    .progress-steps { list-style: none; }
+
+    .progress-steps li {
+      font-size: 11px;
+      padding: 3px 0;
+      color: var(--text-muted);
+      font-family: var(--mono);
+      font-size: 10px;
+    }
+
+    .progress-steps li.done { color: var(--success); }
+    .progress-steps li.active { color: var(--accent-light); font-weight: 500; }
+
+    /* Results Summary */
+    .results-summary {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .summary-card {
+      padding: 14px 10px;
+      border-radius: var(--radius-sm);
+      text-align: center;
+      border: 1px solid transparent;
+    }
+
+    .summary-card.auto {
+      background: var(--success-bg);
+      border-color: var(--success-border);
+    }
+
+    .summary-card.review {
+      background: var(--warning-bg);
+      border-color: var(--warning-border);
+    }
+
+    .summary-card.manual {
+      background: var(--danger-bg);
+      border-color: var(--danger-border);
+    }
+
+    .summary-card .number {
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    .summary-card.auto .number { color: var(--success); }
+    .summary-card.review .number { color: var(--warning); }
+    .summary-card.manual .number { color: var(--danger); }
+
+    .summary-card .label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-top: 2px;
+      color: var(--text-secondary);
+    }
+
+    /* Field Results */
+    .field-list { list-style: none; }
+
+    .field-item {
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transition: all 0.2s;
+      background: var(--surface-2);
+    }
+
+    .field-item:hover {
+      border-color: var(--accent);
+      background: var(--accent-glow);
+    }
+
+    .field-status-icon {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      flex-shrink: 0;
+      font-weight: 600;
+    }
+
+    .field-status-icon.auto_filled { background: var(--success-bg); color: var(--success); border: 1px solid var(--success-border); }
+    .field-status-icon.review { background: var(--warning-bg); color: var(--warning); border: 1px solid var(--warning-border); }
+    .field-status-icon.manual { background: var(--danger-bg); color: var(--danger); border: 1px solid var(--danger-border); }
+
+    .field-content { flex: 1; min-width: 0; }
+
+    .field-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-bottom: 1px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .field-value {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-family: var(--mono);
+    }
+
+    .field-confidence {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 10px;
+      flex-shrink: 0;
+      font-family: var(--mono);
+    }
+
+    .field-confidence.high { background: var(--success-bg); color: var(--success); }
+    .field-confidence.medium { background: var(--warning-bg); color: var(--warning); }
+    .field-confidence.low { background: var(--danger-bg); color: var(--danger); }
+
+    /* Overall confidence */
+    .overall-confidence {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      margin-bottom: 14px;
+    }
+
+    .confidence-circle {
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+      color: white;
+      font-family: var(--mono);
+    }
+
+    .confidence-circle.high { background: linear-gradient(135deg, #059669, #10b981); box-shadow: 0 2px 12px rgba(5,150,105,0.25); }
+    .confidence-circle.medium { background: linear-gradient(135deg, #d97706, #f59e0b); color: white; box-shadow: 0 2px 12px rgba(217,119,6,0.25); }
+    .confidence-circle.low { background: linear-gradient(135deg, #dc2626, #ef4444); box-shadow: 0 2px 12px rgba(220,38,38,0.25); }
+
+    .confidence-text h4 { font-size: 12px; font-weight: 500; }
+    .confidence-text p { font-size: 10px; color: var(--text-muted); }
+
+    /* Pipeline info */
+    .pipeline-info {
+      margin-top: 14px;
+      padding: 12px 14px;
+      background: var(--surface-2);
+      border-radius: var(--radius-sm);
+      border-left: 3px solid var(--accent);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+    }
+
+    .pipeline-info h4 {
+      font-size: 11px;
+      color: var(--accent-light);
+      margin-bottom: 4px;
+      font-weight: 600;
+    }
+
+    .pipeline-info p {
+      font-size: 10px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 0;
+      margin-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tab-btn {
+      padding: 8px 14px;
+      border: none;
+      background: none;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: all 0.2s;
+      font-family: var(--font);
+    }
+
+    .tab-btn:hover { color: var(--text-secondary); }
+    .tab-btn.active { color: var(--accent-light); border-bottom-color: var(--accent); font-weight: 600; }
+
+    /* Empty state */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    .empty-state .icon { font-size: 40px; margin-bottom: 12px; opacity: 0.4; }
+    .empty-state p { font-size: 12px; line-height: 1.6; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--border-light); }
+
+    /* Image preview */
+    .image-preview {
+      display: none;
+      margin-top: 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      max-height: 100%;
+      background: var(--surface-3);
+    }
+
+    .image-preview img {
+      width: 100%;
+      height: auto;
+      max-height: 100%;
+      object-fit: contain;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-left">
+      <div class="header-logo">INSW</div>
+      <div class="header-title">
+        <h1>Smart Drafting Engine</h1>
+        <p>AI-Powered Document Extraction</p>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="ai-badge">
+        <span>⚡</span> LLaMA 3.1 + Tesseract 5
+      </div>
+      <div class="header-status">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusText">Connecting...</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="main">
+
+    <!-- Left Panel: Upload -->
+    <div class="panel">
+      <div class="panel-header">
+        <h2>📄 Upload Dokumen</h2>
+        <span class="panel-badge">Step 1</span>
+      </div>
+      <div class="panel-body">
+        <div class="upload-area" id="uploadArea" onclick="handleSelectFile()">
+          <div class="upload-icon">📎</div>
+          <h3>Pilih atau drop dokumen di sini</h3>
+          <p>Format: PDF, PNG, JPG, TIFF — Maks 10MB</p>
+          <p class="upload-cta">Klik untuk browse file</p>
+        </div>
+
+        <div class="file-info" id="fileInfo" style="display: none;">
+          <span class="file-icon" id="fileIcon">📄</span>
+          <div class="file-details">
+            <h4 id="fileName">-</h4>
+            <p id="fileSize">-</p>
+          </div>
+        </div>
+
+        <div class="image-preview" id="imagePreview">
+          <img id="previewImg" src="" />
+        </div>
+
+        <div class="actions">
+          <button class="btn btn-primary" id="btnExtract" disabled onclick="handleExtract()">
+            🔍 Proses Ekstraksi OCR
+          </button>
+          <button class="btn btn-outline" id="btnReset" onclick="handleReset()" style="display: none;">
+            ↺ Reset
+          </button>
+        </div>
+
+        <div class="progress-container" id="progressContainer">
+          <div class="progress-bar-wrapper">
+            <div class="progress-bar" id="progressBar" style="width: 0%"></div>
+          </div>
+          <ul class="progress-steps">
+            <li id="step1">○ Membaca dokumen...</li>
+            <li id="step2">○ Pre-processing (CLAHE + denoise)...</li>
+            <li id="step3">○ OCR extraction (Tesseract 5)...</li>
+            <li id="step4">○ AI field extraction (LLaMA 3.1)...</li>
+            <li id="step5">○ Confidence scoring & validation...</li>
+          </ul>
+        </div>
+
+        <div class="pipeline-info" style="margin-top: 18px;">
+          <h4>🧠 Pipeline</h4>
+          <p>
+            <strong>Upload</strong> → <strong>Pre-process</strong> (OpenCV CLAHE) →
+            <strong>OCR</strong> (Tesseract 5) → <strong>AI Extract</strong> (LLaMA 3.1 via Groq) →
+            <strong>Auto-fill Form</strong>
+          </p>
+        </div>
+
+        <div class="pipeline-info" style="margin-top: 8px; border-left-color: var(--success);">
+          <h4 style="color: var(--success);">⚙️ Stack</h4>
+          <p>
+            <strong>OCR:</strong> Tesseract 5.5 &nbsp;·&nbsp;
+            <strong>AI:</strong> Groq LLaMA 3.1 &nbsp;·&nbsp;
+            <strong>CV:</strong> OpenCV &nbsp;·&nbsp;
+            <strong>App:</strong> Electron
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Panel: Results -->
+    <div class="panel">
+      <div class="panel-header">
+        <h2>📋 Hasil Ekstraksi</h2>
+        <span class="panel-badge" id="resultBadge" style="background: var(--surface-3); color: var(--text-muted); border-color: var(--border);">Menunggu</span>
+      </div>
+      <div class="panel-body" id="resultsPanel">
+        <div class="empty-state" id="emptyState">
+          <div class="icon">🔍</div>
+          <p>Upload dokumen dan klik "Proses Ekstraksi"<br>untuk melihat hasil OCR + AI di sini</p>
+        </div>
+
+        <div id="resultsContent" style="display: none;">
+          <div class="overall-confidence" id="overallConfidence">
+            <div class="confidence-circle high" id="confidenceCircle">--%</div>
+            <div class="confidence-text">
+              <h4 id="confidenceTitle">Confidence Score</h4>
+              <p id="confidenceDesc">-</p>
+            </div>
+          </div>
+
+          <div id="aiClassification" style="display: none; margin-bottom: 12px; padding: 10px 14px; background: var(--accent-glow); border-radius: 8px; border: 1px solid rgba(79,70,229,0.15);">
+            <div style="font-size: 10px; color: var(--accent-light); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">🤖 AI Classification</div>
+            <div id="aiClassText" style="font-size: 12px; margin-top: 4px; color: var(--text);"></div>
+          </div>
+
+          <div class="results-summary">
+            <div class="summary-card auto">
+              <div class="number" id="countAuto">0</div>
+              <div class="label">Auto-filled</div>
+            </div>
+            <div class="summary-card review">
+              <div class="number" id="countReview">0</div>
+              <div class="label">Review</div>
+            </div>
+            <div class="summary-card manual">
+              <div class="number" id="countManual">0</div>
+              <div class="label">Manual</div>
+            </div>
+          </div>
+
+          <div class="tabs">
+            <button class="tab-btn active" id="tabFields" onclick="switchTab('fields')">📋 Fields</button>
+            <button class="tab-btn" id="tabForm" onclick="switchTab('form')">📝 Form</button>
+            <button class="tab-btn" id="tabAi" onclick="switchTab('ai')">🤖 AI</button>
+          </div>
+
+          <div id="panelFields"><ul class="field-list" id="fieldList"></ul></div>
+
+          <div id="panelForm" style="display: none;">
+            <div style="padding: 10px 12px; background: var(--success-bg); border-radius: 8px; margin-bottom: 12px; border: 1px solid var(--success-border);">
+              <div style="font-size: 10px; color: var(--success); font-weight: 600;">✅ Form Pengajuan Impor — Otomatis Terisi</div>
+              <div style="font-size: 10px; color: var(--text-secondary); margin-top: 2px;">Hijau = auto-filled · Kuning = review · Merah = manual</div>
+            </div>
+            <div id="autoFillForm"></div>
+          </div>
+
+          <div id="panelAi" style="display: none;">
+            <div id="aiContent" style="font-size: 12px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    let selectedFile = null;
+    let isProcessing = false;
+
+    // Backend check
+    async function checkBackend() {
+      try {
+        const result = await window.smartDrafting.checkBackend();
+        const dot = document.getElementById('statusDot');
+        const text = document.getElementById('statusText');
+        if (result.status === 'ok') {
+          dot.className = 'status-dot';
+          text.textContent = 'Online';
+        } else {
+          dot.className = 'status-dot offline';
+          text.textContent = 'Offline';
+        }
+      } catch (e) {
+        document.getElementById('statusDot').className = 'status-dot offline';
+        document.getElementById('statusText').textContent = 'Error';
+      }
+    }
+    checkBackend();
+    setInterval(checkBackend, 5000);
+
+    // File selection
+    async function handleSelectFile() {
+      if (isProcessing) return;
+      const file = await window.smartDrafting.selectFile();
+      if (!file) return;
+      selectedFile = file;
+
+      document.getElementById('fileInfo').style.display = 'flex';
+      document.getElementById('fileName').textContent = file.name;
+      document.getElementById('fileSize').textContent = formatFileSize(file.size) + ' · ' + file.extension.toUpperCase();
+      document.getElementById('fileIcon').textContent = file.extension === '.pdf' ? '📕' : '🖼️';
+      document.getElementById('btnExtract').disabled = false;
+      document.getElementById('btnReset').style.display = 'inline-flex';
+
+      const previewDiv = document.getElementById('imagePreview');
+      const previewImg = document.getElementById('previewImg');
+      const imageExts = ['.png', '.jpg', '.jpeg', '.tiff', '.bmp'];
+      if (imageExts.includes(file.extension)) {
+        previewImg.src = 'file://' + file.path;
+        previewImg.style.display = 'block';
+        previewDiv.style.display = 'block';
+      } else {
+        previewDiv.style.display = 'block';
+        previewDiv.innerHTML = '<div style="padding: 16px; text-align: center;"><div style="font-size: 28px; margin-bottom: 6px;">📕</div><div style="font-size: 11px; color: var(--text-muted);">' + file.name + '</div></div>';
+      }
+    }
+
+    // Extraction
+    async function handleExtract() {
+      if (!selectedFile || isProcessing) return;
+      isProcessing = true;
+      document.getElementById('btnExtract').disabled = true;
+
+      const progressContainer = document.getElementById('progressContainer');
+      progressContainer.classList.add('active');
+      await animateProgress();
+
+      try {
+        const result = await window.smartDrafting.extractDocument(selectedFile.path);
+        if (result.error) {
+          alert('Error: ' + result.error);
+          isProcessing = false;
+          document.getElementById('btnExtract').disabled = false;
+          progressContainer.classList.remove('active');
+          return;
+        }
+        displayResults(result);
+      } catch (e) {
+        alert('Error: ' + e.message);
+      }
+      isProcessing = false;
+      document.getElementById('btnExtract').disabled = false;
+    }
+
+    async function animateProgress() {
+      const steps = ['step1', 'step2', 'step3', 'step4', 'step5'];
+      const bar = document.getElementById('progressBar');
+      for (let i = 0; i < steps.length; i++) {
+        const step = document.getElementById(steps[i]);
+        step.className = 'active';
+        step.textContent = '⟳ ' + step.textContent.substring(2);
+        bar.style.width = ((i + 1) / steps.length * 100) + '%';
+        await sleep(500);
+        step.className = 'done';
+        step.textContent = '✓ ' + step.textContent.substring(2);
+      }
+    }
+
+    // Display results
+    function displayResults(result) {
+      document.getElementById('emptyState').style.display = 'none';
+      document.getElementById('resultsContent').style.display = 'block';
+
+      const badge = document.getElementById('resultBadge');
+      badge.textContent = result.fields_extracted + ' fields';
+      badge.style.background = 'var(--success-bg)';
+      badge.style.color = 'var(--success)';
+      badge.style.borderColor = 'var(--success-border)';
+
+      const conf = result.extraction_confidence;
+      const circle = document.getElementById('confidenceCircle');
+      circle.textContent = conf + '%';
+      circle.className = 'confidence-circle ' + (conf >= 90 ? 'high' : conf >= 70 ? 'medium' : 'low');
+      document.getElementById('confidenceTitle').textContent = 'Extraction Confidence: ' + conf + '%';
+      document.getElementById('confidenceDesc').textContent = result.pages_processed + ' halaman · OCR: ' + result.ocr_confidence + '%';
+
+      // AI Classification
+      if (result.ai && result.ai.ai_enabled && result.ai.classification) {
+        const aiDiv = document.getElementById('aiClassification');
+        aiDiv.style.display = 'block';
+        const cls = result.ai.classification;
+        const typeLabel = {'invoice':'📄 Invoice','bill_of_lading':'🚢 Bill of Lading','packing_list':'📦 Packing List','unknown':'❓ Unknown'};
+        document.getElementById('aiClassText').innerHTML = '<strong>' + (typeLabel[cls.type]||cls.type) + '</strong> · ' + cls.confidence + '% · ' + (cls.reason||'');
+      }
+
+      // Summary
+      const aiFields = (result.ai && result.ai.fields) ? result.ai.fields.filter(f => f.value) : [];
+      const allFields = aiFields.length > 0 ? aiFields : result.fields;
+      document.getElementById('countAuto').textContent = allFields.filter(f => (f.confidence||0) >= 90).length;
+      document.getElementById('countReview').textContent = allFields.filter(f => (f.confidence||0) >= 70 && (f.confidence||0) < 90).length;
+      document.getElementById('countManual').textContent = allFields.filter(f => (f.confidence||0) < 70).length;
+
+      // Field list
+      const fieldList = document.getElementById('fieldList');
+      fieldList.innerHTML = '';
+      result.fields.forEach(field => {
+        const statusIcon = field.status === 'auto_filled' ? '✓' : field.status === 'review' ? '!' : '✗';
+        const confClass = field.confidence >= 90 ? 'high' : field.confidence >= 70 ? 'medium' : 'low';
+        const li = document.createElement('li');
+        li.className = 'field-item';
+        li.innerHTML = '<div class="field-status-icon ' + field.status + '">' + statusIcon + '</div><div class="field-content"><div class="field-label">' + field.label + '</div><div class="field-value">' + field.value + '</div></div><span class="field-confidence ' + confClass + '">' + field.confidence + '%</span>';
+        fieldList.appendChild(li);
+      });
+
+      buildAutoFillForm(allFields, result.ai);
+      buildAiPanel(result.ai);
+    }
+
+    // Auto-fill form
+    function buildAutoFillForm(fields, aiResult) {
+      const container = document.getElementById('autoFillForm');
+      const sourceFields = (aiResult && aiResult.ai_enabled && aiResult.fields && aiResult.fields.length > 0)
+        ? aiResult.fields.filter(f => f.value) : fields;
+
+      const fieldMap = {};
+      sourceFields.forEach(f => {
+        const key = (f.field || f.label || '').toLowerCase().replace(/[\s/]+/g, '_');
+        fieldMap[key] = f;
+      });
+
+      const formSections = [
+        { title: '🏢 Data Perusahaan', fields: [
+          { key: 'supplier_name', label: 'Nama Supplier / Shipper', map: ['supplier_name','supplier___shipper','shipper'] },
+          { key: 'consignee', label: 'Consignee / Importir', map: ['consignee','consignee___buyer'] },
+          { key: 'country_origin', label: 'Negara Asal', map: ['country_of_origin','country_origin'] },
+        ]},
+        { title: '📄 Data Dokumen', fields: [
+          { key: 'invoice_number', label: 'Nomor Invoice', map: ['invoice_number'] },
+          { key: 'invoice_date', label: 'Tanggal Invoice', map: ['invoice_date'] },
+          { key: 'bl_number', label: 'Nomor B/L', map: ['bl_number'] },
+          { key: 'currency', label: 'Mata Uang', map: ['currency'] },
+          { key: 'total_amount', label: 'Total Nilai', map: ['total_amount'] },
+        ]},
+        { title: '🚢 Pengangkutan', fields: [
+          { key: 'vessel_name', label: 'Nama Kapal', map: ['vessel_name'] },
+          { key: 'port_of_loading', label: 'Pelabuhan Muat', map: ['port_of_loading'] },
+          { key: 'port_of_discharge', label: 'Pelabuhan Bongkar', map: ['port_of_discharge'] },
+        ]},
+        { title: '📦 Data Barang', fields: [
+          { key: 'hs_code', label: 'Kode HS', map: ['hs_code'] },
+          { key: 'quantity', label: 'Jumlah Barang', map: ['quantity'] },
+          { key: 'weight', label: 'Berat (KG)', map: ['weight','weight_(kg)'] },
+        ]},
+      ];
+
+      let html = '';
+      formSections.forEach(section => {
+        html += '<div style="margin-bottom: 14px;"><div style="font-size: 11px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid var(--border);">' + section.title + '</div>';
+        section.fields.forEach(ff => {
+          let matched = null;
+          for (const mk of ff.map) { if (fieldMap[mk]) { matched = fieldMap[mk]; break; } }
+          if (!matched) { for (const [k,v] of Object.entries(fieldMap)) { if (ff.map.some(m => k.includes(m)||m.includes(k))) { matched = v; break; } } }
+
+          const value = matched ? (matched.value||'') : '';
+          const conf = matched ? (matched.confidence||0) : 0;
+          const src = matched ? (matched.source==='ai' ? '🤖' : '📝') : '';
+          const status = value ? (conf>=90?'auto':conf>=70?'review':'manual') : 'empty';
+          const bgColor = status==='auto'?'var(--success-bg)':status==='review'?'var(--warning-bg)':status==='manual'?'var(--danger-bg)':'var(--surface-3)';
+          const borderColor = status==='auto'?'var(--success-border)':status==='review'?'var(--warning-border)':status==='manual'?'var(--danger-border)':'var(--border)';
+          const icon = status==='auto'?'✅':status==='review'?'⚠️':status==='manual'?'❌':'';
+
+          html += '<div style="margin-bottom: 6px;"><label style="font-size: 10px; color: var(--text-muted); display: flex; justify-content: space-between; margin-bottom: 2px;"><span>' + ff.label + '</span><span style="font-size: 9px;">' + (value?icon+' '+conf+'% '+src:'') + '</span></label><input type="text" value="' + value + '" placeholder="' + (value?'':'Belum terdeteksi') + '" style="width:100%;padding:7px 10px;border:1px solid ' + borderColor + ';border-radius:6px;background:' + bgColor + ';font-size:11px;color:var(--text);outline:none;font-family:var(--mono);" onfocus="this.style.borderColor=\'var(--accent)\';this.style.background=\'var(--surface-3)\';" onblur="this.style.borderColor=\'' + borderColor + '\';this.style.background=\'' + bgColor + '\';"/></div>';
+        });
+        html += '</div>';
+      });
+
+      html += '<div style="margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); display: flex; gap: 8px;"><button class="btn btn-success" onclick="alert(\'✅ Pengajuan dikirim ke API Gateway → Impor Service → Legacy Bridge → SSMQC\')">📤 Submit Pengajuan</button><button class="btn btn-outline" onclick="alert(\'💾 Draft tersimpan ke PostgreSQL\')">💾 Simpan Draft</button></div>';
+      html += '<div style="margin-top: 6px; font-size: 9px; color: var(--text-muted);">✅ Auto (≥90%) · ⚠️ Review (70-90%) · ❌ Manual (<70%)</div>';
+      container.innerHTML = html;
+    }
+
+    // AI Panel
+    function buildAiPanel(aiResult) {
+      const container = document.getElementById('aiContent');
+      if (!aiResult || !aiResult.ai_enabled) {
+        container.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-muted);"><div style="font-size: 28px; margin-bottom: 8px;">🤖</div><p style="font-size: 11px;">AI tidak aktif. Set GROQ_API_KEY di file .env</p></div>';
+        return;
+      }
+      let html = '';
+      if (aiResult.classification) {
+        html += '<div style="padding: 12px; background: var(--accent-glow); border-radius: 8px; margin-bottom: 10px; border: 1px solid rgba(79,70,229,0.15);"><div style="font-weight: 600; color: var(--accent-light); font-size: 11px;">📋 Classification</div><div style="margin-top: 4px; color: var(--text);">Type: <strong>' + aiResult.classification.type + '</strong> · ' + aiResult.classification.confidence + '%</div><div style="font-size: 10px; color: var(--text-secondary);">' + (aiResult.classification.reason||'') + '</div></div>';
+      }
+      html += '<div style="padding: 12px; background: var(--blue-bg); border-radius: 8px; margin-bottom: 10px; border: 1px solid rgba(37,99,235,0.15);"><div style="font-weight: 600; color: var(--blue); font-size: 11px;">⚡ Model</div><div style="margin-top: 4px; color: var(--text); font-size: 11px;">' + (aiResult.model||'LLaMA 3.1') + ' · ' + (aiResult.total_fields||0) + ' fields</div></div>';
+      if (aiResult.fields && aiResult.fields.length > 0) {
+        html += '<div style="font-weight: 600; margin-bottom: 8px; font-size: 11px; color: var(--text-secondary);">🎯 AI Fields:</div>';
+        aiResult.fields.forEach(f => {
+          if (!f.value) return;
+          const c = f.confidence||0;
+          const color = c>=90?'var(--success)':c>=70?'var(--warning)':'var(--danger)';
+          html += '<div style="padding: 6px 10px; border-left: 2px solid ' + color + '; margin-bottom: 4px; background: var(--surface-2); border-radius: 0 6px 6px 0;"><span style="color: var(--text-muted); font-size: 10px;">' + (f.field||'').replace(/_/g,' ') + '</span><div style="font-weight: 500; font-size: 11px; font-family: var(--mono);">' + f.value + ' <span style="color:' + color + '; font-size: 10px;">' + c + '%</span></div></div>';
+        });
+      }
+      container.innerHTML = html;
+    }
+
+    // Tab switching
+    function switchTab(tab) {
+      document.getElementById('panelFields').style.display = 'none';
+      document.getElementById('panelForm').style.display = 'none';
+      document.getElementById('panelAi').style.display = 'none';
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+
+      if (tab === 'fields') { document.getElementById('panelFields').style.display = 'block'; document.getElementById('tabFields').classList.add('active'); }
+      else if (tab === 'form') { document.getElementById('panelForm').style.display = 'block'; document.getElementById('tabForm').classList.add('active'); }
+      else if (tab === 'ai') { document.getElementById('panelAi').style.display = 'block'; document.getElementById('tabAi').classList.add('active'); }
+    }
+
+    // Reset
+    function handleReset() {
+      selectedFile = null;
+      isProcessing = false;
+      document.getElementById('fileInfo').style.display = 'none';
+      document.getElementById('btnExtract').disabled = true;
+      document.getElementById('btnReset').style.display = 'none';
+      document.getElementById('progressContainer').classList.remove('active');
+      document.getElementById('emptyState').style.display = 'flex';
+      document.getElementById('resultsContent').style.display = 'none';
+      document.getElementById('resultBadge').textContent = 'Menunggu';
+      document.getElementById('resultBadge').style.background = 'var(--surface-3)';
+      document.getElementById('resultBadge').style.color = 'var(--text-muted)';
+      const previewDiv = document.getElementById('imagePreview');
+      previewDiv.style.display = 'none';
+      previewDiv.innerHTML = '<img id="previewImg" src="" style="width:100%;height:auto;max-height:100%;object-fit:contain;" />';
+      document.getElementById('aiClassification').style.display = 'none';
+      const steps = ['step1','step2','step3','step4','step5'];
+      const labels = ['Membaca dokumen...','Pre-processing (CLAHE + denoise)...','OCR extraction (Tesseract 5)...','AI field extraction (LLaMA 3.1)...','Confidence scoring & validation...'];
+      steps.forEach((id,i) => { const el = document.getElementById(id); el.className = ''; el.textContent = '○ ' + labels[i]; });
+      document.getElementById('progressBar').style.width = '0%';
+    }
+
+    // Utils
+    function formatFileSize(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+      return (bytes/(1024*1024)).toFixed(1) + ' MB';
+    }
+    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+  </script>
+</body>
+</html>

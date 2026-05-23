@@ -45,16 +45,32 @@ Proof of Concept (POC) dari **Smart Drafting Engine** — fitur yang memungkinka
 
 **macOS / Linux:**
 ```bash
+# Clone repo
+git clone https://github.com/rfkokt/smart-drafting-demo.git
 cd smart-drafting-demo
+
+# Buat virtual environment & install dependencies
+python3 -m venv venv
 source venv/bin/activate
+pip install flask flask-cors groq python-dotenv pytesseract opencv-python-headless pillow pdf2image
+
+# Jalankan
 python3 run_web.py
 # Buka browser → http://localhost:8500
 ```
 
 **Windows (CMD / PowerShell):**
 ```cmd
+# Clone repo
+git clone https://github.com/rfkokt/smart-drafting-demo.git
 cd smart-drafting-demo
+
+# Buat virtual environment & install dependencies
+python -m venv venv
 venv\Scripts\activate
+pip install flask flask-cors groq python-dotenv pytesseract opencv-python-headless pillow pdf2image
+
+# Jalankan
 python run_web.py
 # Buka browser → http://localhost:8500
 ```
@@ -122,7 +138,7 @@ python run_web.py
 smart-drafting-demo/
 ├── run_web.py              ← ENTRY POINT WEB (jalankan ini)
 ├── run-demo.sh             ← Launcher Electron + Backend
-├── .env                    ← API key Groq
+├── .env.example            ← Template API key
 ├── README.md               ← File ini
 │
 ├── backend/
@@ -140,10 +156,15 @@ smart-drafting-demo/
 │
 ├── sample-docs/            ← Dokumen sample untuk demo
 │   ├── sample_invoice.png
+│   ├── sample_invoice.pdf
+│   ├── sample_invoice_scan.jpg
 │   ├── sample_bill_of_lading.png
-│   └── sample_invoice_scan.jpg
+│   ├── sample_bill_of_lading.pdf
+│   ├── sample_packing_list.png
+│   ├── sample_packing_list.pdf
+│   └── generate_samples.py ← Script generate ulang samples
 │
-└── venv/                   ← Python virtual environment
+└── venv/                   ← Python virtual environment (tidak di-commit)
 ```
 
 ---

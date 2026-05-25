@@ -77,15 +77,32 @@ def _call_ollama(messages: list, port: int = OLLAMA_DEFAULT_PORT, max_tokens: in
         "options": {"temperature": 0.1, "num_predict": max_tokens}
     }).encode()
 
-    req = urllib.request.Request(
-        f"http://127.0.0.1:{port}/v1/chat/completions",
-        data=payload,
-        headers={"Content-Type": "application/json", "Authorization": "Bearer ollama"},
-        method="POST"
-    )
-    resp = urllib.request.urlopen(req, timeout=120)
-    data = json.loads(resp.read())
-    return data["choices"][0]["message"]["content"].strip()
+    try:
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{port}/api/chat",
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST"
+        )
+        resp = urllib.request.urlopen(req, timeout=120)
+        data = json.loads(resp.read())
+        return data["message"]["content"].strip()
+    except Exception:
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{port}/v1/chat/completions",
+            data=json.dumps({
+                "model": model,
+                "messages": messages,
+                "stream": False,
+                "temperature": 0.1,
+                "max_tokens": max_tokens
+            }).encode(),
+            headers={"Content-Type": "application/json", "Authorization": "Bearer ollama"},
+            method="POST"
+        )
+        resp = urllib.request.urlopen(req, timeout=120)
+        data = json.loads(resp.read())
+        return data["choices"][0]["message"]["content"].strip()
 
 
 def _call_groq(messages: list, api_key: str, max_tokens: int = 1500) -> str:

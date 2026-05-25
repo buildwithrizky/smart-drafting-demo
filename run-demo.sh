@@ -9,6 +9,8 @@
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
+OLLAMA_VERSION="0.3.14"
+
 echo ""
 echo "╔══════════════════════════════════════════════════════════╗"
 echo "║  Smart Drafting Engine — POC Demo                      ║"
@@ -18,26 +20,38 @@ echo "║  Starting services...                                    ║"
 echo "╚══════════════════════════════════════════════════════════╝"
 echo ""
 
-# Check Groq API Key for AI features
-if [ -z "$GROQ_API_KEY" ]; then
-    echo "  ⚠️  GROQ_API_KEY not set. AI features disabled."
-    echo "  To enable AI: export GROQ_API_KEY=\"your-key-from-console.groq.com\""
+# ── Auto-download Ollama binary kalau belum ada ────────────────
+OLLAMA_BIN="ollama-bin/mac/ollama"
+if [ ! -f "$OLLAMA_BIN" ]; then
+    echo "  📥 Ollama binary tidak ditemukan. Mendownload..."
+    mkdir -p ollama-bin/mac
+    curl -L "https://github.com/ollama/ollama/releases/download/v${OLLAMA_VERSION}/ollama-darwin" \
+        -o "$OLLAMA_BIN" --progress-bar
+    chmod +x "$OLLAMA_BIN"
+    echo "  ✅ Ollama binary siap"
     echo ""
 else
-    echo "  ✅ GROQ_API_KEY detected. AI features enabled."
-    echo ""
+    echo "  ✅ Ollama binary sudah ada"
 fi
 
 # Kill any existing processes on port 8500
 lsof -ti:8500 | xargs kill -9 2>/dev/null
+lsof -ti:11435 | xargs kill -9 2>/dev/null
 sleep 1
 
 # Activate virtual environment
 source venv/bin/activate
 
+# Install frontend deps kalau belum
+if [ ! -d "frontend/node_modules" ]; then
+    echo "  📦 Installing frontend dependencies..."
+    cd frontend && npm install --silent && cd ..
+    echo "  ✅ Dependencies installed"
+fi
+
 # Start Backend
 echo "[1/2] Starting Python OCR Backend on port 8500..."
-python3 backend/app.py &
+python3 run_web.py &
 BACKEND_PID=$!
 sleep 2
 

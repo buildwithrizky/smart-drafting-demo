@@ -1022,7 +1022,7 @@
       }
 
       // Summary
-      const aiFields = (result.ai && result.ai.fields) ? result.ai.fields.filter(f => f.value) : [];
+      const aiFields = (result.ai && result.ai.fields) ? result.ai.fields.filter(f => f.value && !f.error) : [];
       const allFields = aiFields.length > 0 ? aiFields : result.fields;
       document.getElementById('countAuto').textContent = allFields.filter(f => (f.confidence||0) >= 90).length;
       document.getElementById('countReview').textContent = allFields.filter(f => (f.confidence||0) >= 70 && (f.confidence||0) < 90).length;
@@ -1349,10 +1349,10 @@
 
       window.smartDrafting.onDownloadProgress((data) => {
         const line = data.line || '';
-        document.getElementById('dlStatus').textContent = line.substring(0, 80);
-        const match = line.match(/(\d+)%/);
-        if (match) {
-          document.getElementById('dlProgressFill').style.width = match[1] + '%';
+        document.getElementById('dlStatus').textContent = line.substring(0, 90);
+        const pct = data.pct != null ? data.pct : (() => { const m = line.match(/(\d+)%/); return m ? parseInt(m[1]) : null; })();
+        if (pct != null) {
+          document.getElementById('dlProgressFill').style.width = pct + '%';
         }
       });
 

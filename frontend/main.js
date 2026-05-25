@@ -127,12 +127,14 @@ function getOllamaBinPath() {
     const ext = process.platform === 'win32' ? '.exe' : '';
     return path.join(process.resourcesPath, 'ollama', `ollama${ext}`);
   }
-  // Dev mode: pakai dari ollama-bin/ di project root
+  // Dev mode: cek ollama-bin/ dulu, fallback ke system PATH
   const projectRoot = path.join(__dirname, '..');
-  if (process.platform === 'win32') {
-    return path.join(projectRoot, 'ollama-bin', 'win', 'ollama.exe');
-  }
-  return path.join(projectRoot, 'ollama-bin', 'mac', 'ollama');
+  const bundled = process.platform === 'win32'
+    ? path.join(projectRoot, 'ollama-bin', 'win', 'ollama.exe')
+    : path.join(projectRoot, 'ollama-bin', 'mac', 'ollama');
+  if (fs.existsSync(bundled)) return bundled;
+  // Fallback ke system ollama (kalau sudah install via brew/winget)
+  return process.platform === 'win32' ? 'ollama.exe' : 'ollama';
 }
 
 function getOllamaModelsDir() {
@@ -382,70 +384,62 @@ ipcMain.handle('check-ollama', async (event, model = DEFAULT_OLLAMA_MODEL) => {
 
 let downloadProcess = null;
 
+let downloadAbortController = null;
+
 ipcMain.handle('download-model', async (event, model = DEFAULT_OLLAMA_MODEL) => {
+  const selectedModel = SUPPORTED_OLLAMA_MODELS.includes(model) ? model : DEFAULT_OLLAMA_MODEL;
+
   return new Promise((resolve, reject) => {
-    const selectedModel = SUPPORTED_OLLAMA_MODELS.includes(model) ? model : DEFAULT_OLLAMA_MODEL;
-    const ollamaBin = getOllamaBinPath();
-    const modelsDir = getOllamaModelsDir();
+    downloadAbortController = null;
+    const payload = JSON.stringify({ name: selectedModel, stream: true });
 
-    const binExists = fs.existsSync(ollamaBin);
-
-    if (!binExists) {
-      reject(new Error(
-        'Ollama tidak ditemukan.\n\n' +
-        'Install Ollama terlebih dahulu:\n' +
-        '  macOS: brew install ollama\n' +
-        '  Windows: download dari https://ollama.com/download\n\n' +
-        'Setelah install, restart aplikasi.'
-      ));
-      return;
-    }
-
-    const env = {
-      ...process.env,
-      OLLAMA_MODELS: modelsDir,
-      OLLAMA_HOST: `127.0.0.1:${OLLAMA_PORT}`
-    };
-
-    downloadProcess = spawn(ollamaBin, ['pull', selectedModel], {
-      env,
-      stdio: ['ignore', 'pipe', 'pipe']
-    });
-
-    downloadProcess.on('error', (err) => {
-      downloadProcess = null;
-      reject(new Error('Gagal menjalankan Ollama: ' + err.message));
-    });
-
-    downloadProcess.stdout.on('data', (data) => {
-      const line = data.toString().trim();
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('download-progress', { line });
+    const req = http.request(
+      {
+        hostname: '127.0.0.1',
+        port: OLLAMA_PORT,
+        path: '/api/pull',
+        method: 'POST',
+        family: 4,
+        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) }
+      },
+      (res) => {
+        res.on('data', (chunk) => {
+          const lines = chunk.toString().split('\n').filter(l => l.trim());
+          for (const line of lines) {
+            try {
+              const data = JSON.parse(line);
+              const status = data.status || '';
+              const completed = data.completed || 0;
+              const total = data.total || 0;
+              const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+              const displayLine = total > 0
+                ? `${status} ${pct}% (${(completed / 1e9).toFixed(2)}GB / ${(total / 1e9).toFixed(2)}GB)`
+                : status;
+              if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('download-progress', { line: displayLine, pct });
+              }
+              if (data.status === 'success') {
+                resolve({ success: true });
+              }
+            } catch (_) {}
+          }
+        });
+        res.on('end', () => resolve({ success: true }));
+        res.on('error', (e) => reject(new Error('Download error: ' + e.message)));
       }
-    });
+    );
 
-    downloadProcess.stderr.on('data', (data) => {
-      const line = data.toString().trim();
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('download-progress', { line });
-      }
-    });
-
-    downloadProcess.on('exit', (code) => {
-      downloadProcess = null;
-      if (code === 0) {
-        resolve({ success: true });
-      } else {
-        reject(new Error(`Download gagal (exit code ${code})`));
-      }
-    });
+    req.on('error', (e) => reject(new Error('Ollama tidak dapat dihubungi: ' + e.message)));
+    downloadAbortController = req;
+    req.write(payload);
+    req.end();
   });
 });
 
 ipcMain.handle('cancel-download', async () => {
-  if (downloadProcess) {
-    downloadProcess.kill();
-    downloadProcess = null;
+  if (downloadAbortController) {
+    downloadAbortController.destroy();
+    downloadAbortController = null;
   }
   return { cancelled: true };
 });

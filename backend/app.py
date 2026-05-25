@@ -480,6 +480,7 @@ class SmartDraftingEngine:
             },
             "fields": fields,
             "ai": ai_result,
+            "raw_text": all_text,
             "raw_text_preview": all_text[:500] + "..." if len(all_text) > 500 else all_text,
             "page_details": page_results
         }

@@ -271,7 +271,8 @@ def process_with_ai(
 
         fields = extract_fields_ai(raw_text, doc_type, caller)
 
-        if fields and not any("error" in f for f in fields):
+        valid_fields = [f for f in fields if "error" not in f and f.get("value")]
+        if valid_fields:
             fields = validate_and_correct(fields, raw_text, caller)
 
         return {

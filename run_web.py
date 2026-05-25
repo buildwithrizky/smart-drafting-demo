@@ -83,27 +83,11 @@ def extract():
     try:
         result = engine.process_document(tmp_path)
 
-        if AI_AVAILABLE and result.get("raw_text_preview"):
+        raw_text = result.get("raw_text", "")
+        if AI_AVAILABLE and raw_text.strip():
             try:
-                from pdf2image import convert_from_path
-                from PIL import Image
-                import app as _app_module
-                file_path = Path(tmp_path)
-                if file_path.suffix.lower() == '.pdf':
-                    pdf_kwargs = {'dpi': 300}
-                    _poppler = getattr(_app_module, 'BUNDLED_POPPLER_PATH', None)
-                    if _poppler:
-                        pdf_kwargs['poppler_path'] = _poppler
-                    images = convert_from_path(str(file_path), **pdf_kwargs)
-                    if len(images) > 3:
-                        images = images[:3]
-                else:
-                    images = [Image.open(str(file_path))]
-                full_text = ""
-                for img in images:
-                    full_text += engine.extract_text(img) + "\n"
                 ai_result = process_with_ai(
-                    full_text,
+                    raw_text,
                     mode=ai_mode,
                     api_key=api_key,
                     ollama_port=ollama_port,

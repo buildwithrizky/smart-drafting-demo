@@ -1129,7 +1129,7 @@
       }
 
       // Summary
-      const aiFields = (result.ai && result.ai.fields) ? result.ai.fields.filter(f => f.value) : [];
+      const aiFields = (result.ai && result.ai.fields) ? result.ai.fields.filter(f => f.value && !f.error) : [];
       const allFields = aiFields.length > 0 ? aiFields : result.fields;
       document.getElementById('countAuto').textContent = allFields.filter(f => (f.confidence||0) >= 90).length;
       document.getElementById('countReview').textContent = allFields.filter(f => (f.confidence||0) >= 70 && (f.confidence||0) < 90).length;
